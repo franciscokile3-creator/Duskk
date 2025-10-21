@@ -1,0 +1,123 @@
+--// Dusk Aim Assist with Custom UI and Smoothness Dropdown
+
+-- // Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- // Config
+local TargetAnimationID = "rbxassetid://77894750279891"
+local Enabled = false
+local Smoothness = 0.2
+
+-- // Create UI
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Main = Instance.new("Frame", ScreenGui)
+local Title = Instance.new("TextLabel", Main)
+local Toggle = Instance.new("TextButton", Main)
+local SmoothLabel = Instance.new("TextLabel", Main)
+local SmoothDrop = Instance.new("TextButton", Main)
+
+ScreenGui.Name = "DuskAimAssistUI"
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 200, 0, 150)
+Main.Position = UDim2.new(0.4, 0, 0.3, 0)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Main.Active = true
+Main.Draggable = true
+Main.BorderSizePixel = 0
+Main.Visible = true
+
+Title.Text = "Dusk Aim Assist"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Title.TextColor3 = Color3.fromRGB(0, 170, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
+
+Toggle.Text = "Enable: OFF"
+Toggle.Size = UDim2.new(1, -20, 0, 30)
+Toggle.Position = UDim2.new(0, 10, 0, 40)
+Toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+Toggle.Font = Enum.Font.SourceSansBold
+Toggle.TextSize = 18
+
+SmoothLabel.Text = "Smoothness:"
+SmoothLabel.Size = UDim2.new(1, -20, 0, 20)
+SmoothLabel.Position = UDim2.new(0, 10, 0, 80)
+SmoothLabel.BackgroundTransparency = 1
+SmoothLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothLabel.Font = Enum.Font.SourceSansBold
+SmoothLabel.TextSize = 16
+
+SmoothDrop.Text = "Medium"
+SmoothDrop.Size = UDim2.new(1, -20, 0, 25)
+SmoothDrop.Position = UDim2.new(0, 10, 0, 105)
+SmoothDrop.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SmoothDrop.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothDrop.Font = Enum.Font.SourceSansBold
+SmoothDrop.TextSize = 16
+
+-- // UI Logic
+Toggle.MouseButton1Click:Connect(function()
+    Enabled = not Enabled
+    Toggle.Text = "Enable: " .. (Enabled and "ON" or "OFF")
+    Toggle.BackgroundColor3 = Enabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(45, 45, 45)
+end)
+
+local smoothOptions = {"Low", "Medium", "High"}
+local currentIndex = 2
+
+SmoothDrop.MouseButton1Click:Connect(function()
+    currentIndex = currentIndex + 1
+    if currentIndex > #smoothOptions then currentIndex = 1 end
+    SmoothDrop.Text = smoothOptions[currentIndex]
+    if SmoothDrop.Text == "Low" then
+        Smoothness = 0.1
+    elseif SmoothDrop.Text == "Medium" then
+        Smoothness = 0.2
+    else
+        Smoothness = 0.4
+    end
+end)
+
+-- // Aim Logic
+local function getNearestPlayer()
+    local nearest, distance = nil, math.huge
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local root = player.Character.HumanoidRootPart
+            local dist = (root.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if dist < distance then
+                distance = dist
+                nearest = root
+            end
+        end
+    end
+    return nearest
+end
+
+-- // Animation Detection + Aim
+RunService.RenderStepped:Connect(function()
+    if not Enabled then return end
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            for _, anim in pairs(player.Character.Humanoid:GetPlayingAnimationTracks()) do
+                if anim.Animation and anim.Animation.AnimationId == TargetAnimationID then
+                    local targetRoot = getNearestPlayer()
+                    if targetRoot then
+                        local aimPos = targetRoot.Position
+                        local camCFrame = Camera.CFrame
+                        local direction = (aimPos - camCFrame.Position).Unit
+                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(camCFrame.Position, camCFrame.Position + direction), Smoothness)
+                    end
+                end
+            end
+        end
+    end
+end)
